@@ -6,7 +6,6 @@ import com.datastax.oss.driver.api.querybuilder.SchemaBuilder;
 import com.datastax.oss.driver.api.querybuilder.relation.Relation;
 import com.datastax.oss.driver.api.querybuilder.schema.CreateKeyspace;
 import com.datastax.oss.driver.api.querybuilder.select.Select;
-import edu.umd.cs.findbugs.annotations.NonNull;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -49,8 +48,10 @@ public class KeyspaceRepository {
     public List<String> getTableList(String keyspace)
     {
         Select select = QueryBuilder.selectFrom("system_schema", "tables").all();
-        if (keyspace != null)
+        if (keyspace != null) {
+            keyspace = keyspace.toLowerCase();
             select = select.where(Relation.column("keyspace_name").isEqualTo(QueryBuilder.literal(keyspace)));
+        }
         ResultSet y = session.execute(select.build());
         List<String> result = new ArrayList<>();
         y.forEach(x -> result.add(x.getString("table_name")));
