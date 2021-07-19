@@ -1,9 +1,9 @@
 import com.datastax.oss.driver.api.core.CqlIdentifier;
 import com.datastax.oss.driver.api.core.CqlSession;
+import com.datastax.oss.driver.api.core.cql.ColumnDefinitions;
 import com.datastax.oss.driver.api.core.cql.ResultSet;
 import com.datastax.oss.driver.api.core.cql.Row;
 import com.datastax.oss.driver.api.core.metadata.schema.ColumnMetadata;
-import com.datastax.oss.driver.api.core.metrics.Metrics;
 import com.datastax.oss.driver.api.core.type.DataType;
 import com.datastax.oss.driver.api.core.type.DataTypes;
 import com.datastax.oss.driver.api.querybuilder.QueryBuilder;
@@ -160,6 +160,22 @@ public class KeyspaceRepository {
             }
         });
         return partitionKeysTONumInPartition;
+    }
+
+    public int getNumberOfColumnsFromTable(String keyspaceName0, String tableName0) {
+
+        ResultSet resultSet1 = session.execute("SELECT * FROM " + keyspaceName0 + "." + tableName0);
+        ColumnDefinitions colDefinitions1 = resultSet1.getColumnDefinitions();
+        int numberOfColumns = colDefinitions1.size();
+
+        return numberOfColumns;
+    }
+    public ColumnDefinitions getObjColumnDefinitionsFromTable(String keyspaceName0, String tableName0) {
+
+        ResultSet resultSet1 = session.execute("SELECT * FROM " + keyspaceName0 + "." + tableName0);
+        ColumnDefinitions colDefinitions1 = resultSet1.getColumnDefinitions();
+
+        return colDefinitions1;
     }
     /*public double getClusterSize()
     {
