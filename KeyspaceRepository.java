@@ -111,15 +111,15 @@ public class KeyspaceRepository {
         ResultSet y = session.execute(select.build());
         Set<String> diffStrings = new TreeSet<>();
         y.forEach(x -> {StringBuilder sb = new StringBuilder();
-                        sb.append('(');
-                        for(int i=0; i < colNames.size(); i++)
-                        {
-                            sb.append(stringConv(colTypes.get(i), x, colNames.get(i)) + ", ");
-                        }
-                        sb.delete(sb.length()-2, sb.length());
-                        sb.append(')');
-                        diffStrings.add(sb.toString());
-                        });
+            sb.append('(');
+            for(int i=0; i < colNames.size(); i++)
+            {
+                sb.append(stringConv(colTypes.get(i), x, colNames.get(i)) + ", ");
+            }
+            sb.delete(sb.length()-2, sb.length());
+            sb.append(')');
+            diffStrings.add(sb.toString());
+        });
         List<String> parts = new ArrayList<>();
         for(String x: diffStrings)
         {
@@ -143,17 +143,17 @@ public class KeyspaceRepository {
         ResultSet y = session.execute(select.build());
         Map<String, Integer> partitionKeysTONumInPartition = new TreeMap<>();
         y.forEach(x -> {StringBuilder sb = new StringBuilder();
-                        sb.append('(');
-                        for(int i=0; i < colNames.size(); i++)
-                        {
-                            sb.append(stringConv(colTypes.get(i), x, colNames.get(i)) + ", ");
-                        }
-                        sb.delete(sb.length()-2, sb.length());
-                        sb.append(')');
-                        if(partitionKeysTONumInPartition.containsKey(sb.toString()))
-                        {
-                            partitionKeysTONumInPartition.put(sb.toString(), partitionKeysTONumInPartition.get(sb.toString())+1);
-                        }
+            sb.append('(');
+            for(int i=0; i < colNames.size(); i++)
+            {
+                sb.append(stringConv(colTypes.get(i), x, colNames.get(i)) + ", ");
+            }
+            sb.delete(sb.length()-2, sb.length());
+            sb.append(')');
+            if(partitionKeysTONumInPartition.containsKey(sb.toString()))
+            {
+                partitionKeysTONumInPartition.put(sb.toString(), partitionKeysTONumInPartition.get(sb.toString())+1);
+            }
             else
             {
                 partitionKeysTONumInPartition.put(sb.toString(), 1);
@@ -185,8 +185,55 @@ public class KeyspaceRepository {
             a.get().getSessionMetric()
         }
     }
-
      */
+    public double getPartitionSize(String keyspace, String table, String partitionName)
+    {
+        //Creates Map containing all partitions in a table and number of rows in each
+        List<String> colNames = getPartitionColList(keyspace, table);
+        List<DataType> colTypes = getPartitionColTypeList(keyspace, table);
+        keyspace = keyspace.toLowerCase();
+        table = table.toLowerCase();
+        Select select = QueryBuilder.selectFrom(keyspace, table).columns(colNames);
+        ResultSet y = session.execute(select.build());
+        Map<String, Integer> partitionKeysTONumInPartition = new TreeMap<>();
+        y.forEach(x -> {StringBuilder sb = new StringBuilder();
+            sb.append('(');
+            for(int i=0; i < colNames.size(); i++)
+            {
+                sb.append(stringConv(colTypes.get(i), x, colNames.get(i)) + ", ");
+            }
+            sb.delete(sb.length()-2, sb.length());
+            sb.append(')');
+            if(partitionKeysTONumInPartition.containsKey(sb.toString()))
+            {
+                partitionKeysTONumInPartition.put(sb.toString(), partitionKeysTONumInPartition.get(sb.toString())+1);
+            }
+            else
+            {
+                partitionKeysTONumInPartition.put(sb.toString(), 1);
+            }
+        });
+
+        double clustersize = 5016; //Change to cluster size method soon
+        String partition = "(" + partitionName + ")";
+
+        //If the partition exists
+        if(partitionKeysTONumInPartition.containsKey(partition))
+        {
+            Integer NumRowsInPartition = new Integer(partitionKeysTONumInPartition.get(partition));
+            Integer SumRows = new Integer(0);
+            for (String ptn : partitionKeysTONumInPartition.keySet())
+            {
+                SumRows+= partitionKeysTONumInPartition.get(ptn);
+            }
+
+            //dividing the cluster size by the total number of rows, times the number of rows in each partition
+            double partitionDiskSpace = (clustersize/SumRows) * NumRowsInPartition;
+            return partitionDiskSpace;
+        }
+        System.out.println("Error: Partition does not exist");
+        return 0.0;
+    }
     private String stringConv(DataType a, Row b, String col)
     {
         if(a.equals(DataTypes.ASCII)) {
@@ -234,7 +281,7 @@ public class KeyspaceRepository {
         // SOME TYPES YET TO BE IMPLEMENTED
         return "";
     }
-    private int intConvert(DataType a)
+/*    private int intConvert(DataType a)
     {
         if(a.equals(DataTypes.ASCII))
         {
@@ -290,5 +337,5 @@ public class KeyspaceRepository {
         }
         // SOME TYPES YET TO BE IMPLEMENTED
         return 0;
-    }
+    } */
 }
