@@ -1,6 +1,5 @@
 import com.datastax.oss.driver.api.core.CqlIdentifier;
 import com.datastax.oss.driver.api.core.CqlSession;
-import com.datastax.oss.driver.api.core.cql.ColumnDefinitions;
 import com.datastax.oss.driver.api.core.cql.ResultSet;
 import com.datastax.oss.driver.api.core.cql.Row;
 import com.datastax.oss.driver.api.core.metadata.schema.ColumnMetadata;
@@ -17,94 +16,91 @@ import java.util.*;
 public class KeyspaceRepository {
     private CqlSession session;
 
-    public KeyspaceRepository(CqlSession session)
-    {
+    public KeyspaceRepository(CqlSession session) {
         this.session = session;
     }
 
     public void createKeyspace(String keyspaceName, int numberOfReplicas) {
-        CreateKeyspace createKeyspace = SchemaBuilder.createKeyspace(keyspaceName)
+        CreateKeyspace cK = SchemaBuilder.createKeyspace(keyspaceName)
                 .ifNotExists()
                 .withSimpleStrategy(numberOfReplicas);
 
-        session.execute(createKeyspace.build());
+        session.execute(cK.build());
     }
+
     public void useKeyspace(String keyspace) {
         session.execute("USE " + CqlIdentifier.fromCql(keyspace));
     }
 
-    /**
-     * Gets the list of Keyspaces on the Cluster.
-     * @return The list of all keyspaces as a List Object
-     */
-    public List<String> getKeyspaceList()
-    {
-        Select select = QueryBuilder.selectFrom("system_schema", "keyspaces").column("keyspace_name");
-        ResultSet y = session.execute(select.build());
+    public List<String> getKeyspaceList() {
+        Select select = QueryBuilder.selectFrom("system_schema", "keyspaces").all();
+        ResultSet rs = session.execute(select.build());
         List<String> result = new ArrayList<>();
-        y.forEach(x -> result.add(x.getString("keyspace_name")));
+        rs.forEach(x -> result.add(x.getString("keyspace_name")));
         return result;
     }
-    /**
-     * Gets the list of Tables within a given Keyspace, or all tables
-     * @param keyspace The keyspace from which the list of tables is to be retrieved.
-     *                 If null, all tables will be returned
-     * @return The list of all tables within the specified keyspace.
-     */
+
     public List<String> getTableList(String keyspace)
     {
-        Select select = QueryBuilder.selectFrom("system_schema", "tables").column("table_name");
-        if (keyspace != null) {
-            keyspace = keyspace.toLowerCase();
-            select = select.where(Relation.column("keyspace_name").isEqualTo(QueryBuilder.literal(keyspace)));
-        }
-        ResultSet y = session.execute(select.build());
+        Select select = QueryBuilder.selectFrom("system_schema", "tables").all();
+        if (keyspace != null)
+            if (keyspace != null) {
+                keyspace = keyspace.toLowerCase();
+                select = select.where(Relation.column("keyspace_name").isEqualTo(QueryBuilder.literal(keyspace)));
+            }
+        ResultSet rs = session.execute(select.build());
         List<String> result = new ArrayList<>();
-        y.forEach(x -> result.add(x.getString("table_name")));
+        rs.forEach(x -> result.add(x.getString("table_name")));
         return result;
     }
-    /**
-     * Gets the list of Column Names that are Partition Keys
-     * @param keyspace The keyspace from which the Partition Column List is to be retrieved.
-     * @param table The table from which the Partition Column List is to be retrieved.
-     * @return The list of all Columns that are Partition Keys within the specified table.
-     */
-    public List<String> getPartitionColList(String keyspace, String table)
+
+    public String getColDefs(String keyspace, String table)
     {
-        List<ColumnMetadata> ace = session.getMetadata().getKeyspace(keyspace).get().getTable(table).get().getPartitionKey();
-        List<String> colNames = new ArrayList<>();
-        for(ColumnMetadata base : ace)
-        {
-            colNames.add(base.getName().toString());
+        Map<CqlIdentifier,ColumnMetadata> map = session.getMetadata().getKeyspace(keyspace).get().getTable(table).get().getColumns();
+        Set<CqlIdentifier> set = map.keySet();
+        String s1 = "";
+        for (CqlIdentifier cqlIdentifier: set) {
+            String s = map.get(cqlIdentifier).toString();
+            s1 += s.substring(s.indexOf("(")+1,s.length()-1) + ", ";
         }
-        return colNames;
+        s1 = s1.substring(0,s1.length()-2);
+        return (s1);
     }
-    /**
-     * Gets the list of Column Data Types of Columns that are Partition Keys
-     * @param keyspace The keyspace from which the Partition Column Type List is to be retrieved.
-     * @param table The table from which the Partition Column Type List is to be retrieved.
-     * @return The list of all Column Types of Columns that are Partition Keys within the specified table.
-     */
-    public List<DataType> getPartitionColTypeList(String keyspace, String table)
+
+    public List<String> getPartitionVarList(String keyspace, String table)
     {
-        List<ColumnMetadata> ace = session.getMetadata().getKeyspace(keyspace).get().getTable(table).get().getPartitionKey();
-        List<DataType> colTypes = new ArrayList<>();
-        for(ColumnMetadata base : ace)
-        {
-            colTypes.add(base.getType());
+        try {
+            List<ColumnMetadata> ace = session.getMetadata().getKeyspace(keyspace).get().getTable(table).get().getPartitionKey();
+            List<String> colNames = new ArrayList<>();
+            for (ColumnMetadata base : ace) {
+                colNames.add(base.getName().toString());
+            }
+            return colNames;
         }
-        return colTypes;
+        catch (Exception e) {
+            return(new ArrayList<String>());
+        }
     }
-    /**
-     * Gets the list of Partition Keys within a specified table. To get number of partitions, use the .size() method of the List Class
-     * @param keyspace The keyspace from which the Partition List is to be retrieved.
-     * @param table The table from which the Partition List is to be retrieved.
-     * @return The list of all Partition Keys within the specified table.
-     */
+    public List<DataType> getPartitionVarTypeList(String keyspace, String table)
+    {
+        try {
+            List<ColumnMetadata> ace = session.getMetadata().getKeyspace(keyspace).get().getTable(table).get().getPartitionKey();
+            List<DataType> colTypes = new ArrayList<>();
+            for (ColumnMetadata base : ace) {
+                colTypes.add(base.getType());
+            }
+            return colTypes;
+        }
+        catch (Exception e) {
+            return(new ArrayList<DataType>());
+        }
+    }
     public List<String> getPartitionList(String keyspace, String table)
     {
-        List<String> colNames = getPartitionColList(keyspace, table);
-        List<DataType> colTypes = getPartitionColTypeList(keyspace, table);
+        List<String> colNames = getPartitionVarList(keyspace, table);
+        List<DataType> colTypes = getPartitionVarTypeList(keyspace, table);
+        if(colNames.isEmpty())
+            return new ArrayList<>();
         keyspace = keyspace.toLowerCase();
         table = table.toLowerCase();
         Select select = QueryBuilder.selectFrom(keyspace, table).columns(colNames);
@@ -114,7 +110,7 @@ public class KeyspaceRepository {
             sb.append('(');
             for(int i=0; i < colNames.size(); i++)
             {
-                sb.append(stringConv(colTypes.get(i), x, colNames.get(i)) + ", ");
+                sb.append(conversion(colNames.get(i), colTypes.get(i), x) + ", ");
             }
             sb.delete(sb.length()-2, sb.length());
             sb.append(')');
@@ -127,26 +123,22 @@ public class KeyspaceRepository {
         }
         return parts;
     }
-    /**
-     * Gets a map of Partition Keys within a specified table mapped to the number of Rows that they contain within them.
-     * @param keyspace The keyspace from which the PartitionToRows Map is to be retrieved.
-     * @param table The table from which the PartitionToRows Map is to be retrieved.
-     * @return The map of all Partition Keys to the Number of Rows they house within the specified table.
-     */
-    public Map<String, Integer> getNumRowsPerPart(String keyspace, String table)
+    public Map<String, Integer> getRowsPerPartition(String keyspace, String table)
     {
-        List<String> colNames = getPartitionColList(keyspace, table);
-        List<DataType> colTypes = getPartitionColTypeList(keyspace, table);
+        List<String> colNames = getPartitionVarList(keyspace, table);
+        List<DataType> colTypes = getPartitionVarTypeList(keyspace, table);
+        if(colNames.isEmpty())
+            return new TreeMap<String, Integer>();
         keyspace = keyspace.toLowerCase();
         table = table.toLowerCase();
         Select select = QueryBuilder.selectFrom(keyspace, table).columns(colNames);
         ResultSet y = session.execute(select.build());
-        Map<String, Integer> partitionKeysTONumInPartition = new TreeMap<>();
+        Map<String, Integer> partitionKeysTONumInPartition = new HashMap<>();
         y.forEach(x -> {StringBuilder sb = new StringBuilder();
             sb.append('(');
             for(int i=0; i < colNames.size(); i++)
             {
-                sb.append(stringConv(colTypes.get(i), x, colNames.get(i)) + ", ");
+                sb.append(conversion(colNames.get(i), colTypes.get(i), x) + ", ");
             }
             sb.delete(sb.length()-2, sb.length());
             sb.append(')');
@@ -162,180 +154,66 @@ public class KeyspaceRepository {
         return partitionKeysTONumInPartition;
     }
 
-    public int getNumberOfColumnsFromTable(String keyspaceName0, String tableName0) {
 
-        ResultSet resultSet1 = session.execute("SELECT * FROM " + keyspaceName0 + "." + tableName0);
-        ColumnDefinitions colDefinitions1 = resultSet1.getColumnDefinitions();
-        int numberOfColumns = colDefinitions1.size();
 
-        return numberOfColumns;
-    }
-    public ColumnDefinitions getObjColumnDefinitionsFromTable(String keyspaceName0, String tableName0) {
-
-        ResultSet resultSet1 = session.execute("SELECT * FROM " + keyspaceName0 + "." + tableName0);
-        ColumnDefinitions colDefinitions1 = resultSet1.getColumnDefinitions();
-
-        return colDefinitions1;
-    }
-    /*public double getClusterSize()
-    {
-        Optional<Metrics> a = session.getMetrics();
-        if(a.isPresent())
+    private String conversion(String col, DataType a, Row b){
+        if(a.equals(DataTypes.ASCII))
         {
-            a.get().getSessionMetric()
-        }
-    }
-     */
-    public double getPartitionSize(String keyspace, String table, String partitionName)
-    {
-        //Creates Map containing all partitions in a table and number of rows in each
-        List<String> colNames = getPartitionColList(keyspace, table);
-        List<DataType> colTypes = getPartitionColTypeList(keyspace, table);
-        keyspace = keyspace.toLowerCase();
-        table = table.toLowerCase();
-        Select select = QueryBuilder.selectFrom(keyspace, table).columns(colNames);
-        ResultSet y = session.execute(select.build());
-        Map<String, Integer> partitionKeysTONumInPartition = new TreeMap<>();
-        y.forEach(x -> {StringBuilder sb = new StringBuilder();
-            sb.append('(');
-            for(int i=0; i < colNames.size(); i++)
-            {
-                sb.append(stringConv(colTypes.get(i), x, colNames.get(i)) + ", ");
-            }
-            sb.delete(sb.length()-2, sb.length());
-            sb.append(')');
-            if(partitionKeysTONumInPartition.containsKey(sb.toString()))
-            {
-                partitionKeysTONumInPartition.put(sb.toString(), partitionKeysTONumInPartition.get(sb.toString())+1);
-            }
-            else
-            {
-                partitionKeysTONumInPartition.put(sb.toString(), 1);
-            }
-        });
-
-        double clustersize = 5016; //Change to cluster size method soon
-        String partition = "(" + partitionName + ")";
-
-        //If the partition exists
-        if(partitionKeysTONumInPartition.containsKey(partition))
-        {
-            Integer NumRowsInPartition = new Integer(partitionKeysTONumInPartition.get(partition));
-            Integer SumRows = new Integer(0);
-            for (String ptn : partitionKeysTONumInPartition.keySet())
-            {
-                SumRows+= partitionKeysTONumInPartition.get(ptn);
-            }
-
-            //dividing the cluster size by the total number of rows, times the number of rows in each partition
-            double partitionDiskSpace = (clustersize/SumRows) * NumRowsInPartition;
-            return partitionDiskSpace;
-        }
-        System.out.println("Error: Partition does not exist");
-        return 0.0;
-    }
-    private String stringConv(DataType a, Row b, String col)
-    {
-        if(a.equals(DataTypes.ASCII)) {
             return b.getString(col);
         }
-        else if(a.equals(DataTypes.BIGINT)) {
+        else if(a.equals(DataTypes.BIGINT))
+        {
             return String.valueOf(b.getLong(col));
         }
-        else if(a.equals(DataTypes.BLOB)) {
+        else if(a.equals(DataTypes.BLOB))
+        {
             return "String.valueOf(b.getLong(col))";// TO BE IMPLEMENTED
         }
-        else if(a.equals(DataTypes.BOOLEAN)) {
+        else if(a.equals(DataTypes.BOOLEAN))
+        {
             return String.valueOf(b.getBoolean(col));
         }
-        else if(a.equals(DataTypes.COUNTER)) {
+        else if(a.equals(DataTypes.COUNTER))
+        {
             return "String.valueOf(b.getLong(col))";// TO BE IMPLEMENTED
         }
-        else if(a.equals(DataTypes.DATE)) {
+        else if(a.equals(DataTypes.BIGINT))
+        {
+            return String.valueOf(b.getLong(col));
+        }
+        else if(a.equals(DataTypes.DATE))
+        {
             return "String.valueOf(b.getString(col))"; // TO BE IMPLEMENTED
         }
-        else if(a.equals(DataTypes.DECIMAL)) {
+        else if(a.equals(DataTypes.DECIMAL))
+        {
             return b.getBigDecimal(col).toString();
         }
-        else if(a.equals(DataTypes.DOUBLE)) {
+        else if(a.equals(DataTypes.DOUBLE))
+        {
             return String.valueOf(b.getDouble(col));
         }
-        else if(a.equals(DataTypes.FLOAT)) {
+        else if(a.equals(DataTypes.FLOAT))
+        {
             return String.valueOf(b.getFloat(col));
         }
-        else if(a.equals(DataTypes.INET)) {
+        else if(a.equals(DataTypes.INET))
+        {
             return b.getInetAddress(col).toString();
         }
-        else if(a.equals(DataTypes.INT)) {
+        else if(a.equals(DataTypes.INT))
+        {
             return String.valueOf(b.getInt(col));
         }
-        else if(a.equals(DataTypes.TIMESTAMP)) {
+        else if(a.equals(DataTypes.TIMESTAMP))
+        {
             return b.getInstant(col).toString();
         }
-        else if(a.equals(DataTypes.TEXT)) {
+        else if(a.equals(DataTypes.TEXT))
+        {
             return b.getString(col);
-        }
-        else if(a.equals(DataTypes.UUID)) {
-            return  b.getUuid(col).toString();
         }
         // SOME TYPES YET TO BE IMPLEMENTED
         return "";
     }
-/*    private int intConvert(DataType a)
-    {
-        if(a.equals(DataTypes.ASCII))
-        {
-            return 2;
-        }
-        else if(a.equals(DataTypes.BIGINT))
-        {
-            return 80; //implement more flexible value
-        }
-        else if(a.equals(DataTypes.BLOB))
-        {
-            return 65535; //implement more flexible value
-        }
-        else if(a.equals(DataTypes.BOOLEAN))
-        {
-            return 1;
-        }
-        else if(a.equals(DataTypes.COUNTER))
-        {
-            return 64;
-        }
-        else if(a.equals(DataTypes.DATE))
-        {
-            return 32;
-        }
-        else if(a.equals(DataTypes.DECIMAL))
-        {
-            return 5;
-        }
-        else if(a.equals(DataTypes.DOUBLE))
-        {
-            return 8;
-        }
-        else if(a.equals(DataTypes.FLOAT))
-        {
-            return 4;
-        }
-        else if(a.equals(DataTypes.INET))
-        {
-            return 19;
-        }
-        else if(a.equals(DataTypes.INT))
-        {
-            return 4;
-        }
-        else if(a.equals(DataTypes.TIMESTAMP))
-        {
-            return 13;
-        }
-        else if(a.equals(DataTypes.TEXT))
-        {
-            return 10;
-        }
-        // SOME TYPES YET TO BE IMPLEMENTED
-        return 0;
-    } */
 }
