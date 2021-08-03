@@ -28,7 +28,7 @@ public class ToCSV {
         //try {
             connector.connect(node, portNum, dataCenter);
             PrintWriter pw = new PrintWriter("table_data.csv");
-            pw.println("Keyspace Name\tTable Name\tNum Partitions\tPartition Row Stats\tColumn Definitions\tTable Size\tPartition Size Stats");
+            pw.println("Keyspace Name,Table Name,Num Partitions,Partition Row Stats,Column Definitions,Table Size,Partition Size Stats");
             KeyspaceRepository kR = new KeyspaceRepository(connector.getSession());
             //Batchamus bababoi = new Batchamus(connector.getSession(), null, null);
             List<String> keyspaces = kR.getKeyspaceList();
@@ -78,6 +78,7 @@ public class ToCSV {
         }*/
     }
 }
+/*
 class KeyThread extends Thread {
     KeyspaceRepository kR;
     PrintWriter pw;
@@ -97,4 +98,4 @@ class KeyThread extends Thread {
             System.out.println("Boi");
         }
     }
-}
+}*/

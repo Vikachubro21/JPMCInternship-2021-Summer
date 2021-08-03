@@ -6,11 +6,12 @@ import com.datastax.oss.driver.api.core.metadata.schema.ColumnMetadata;
 import com.datastax.oss.driver.api.core.type.DataType;
 import com.datastax.oss.driver.api.core.type.DataTypes;
 import com.datastax.oss.driver.api.querybuilder.QueryBuilder;
-import com.datastax.oss.driver.api.querybuilder.SchemaBuilder;
 import com.datastax.oss.driver.api.querybuilder.relation.Relation;
-import com.datastax.oss.driver.api.querybuilder.schema.CreateKeyspace;
 import com.datastax.oss.driver.api.querybuilder.select.Select;
 
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.IOException;
 import java.util.*;
 
 public class KeyspaceRepository {
@@ -19,19 +20,6 @@ public class KeyspaceRepository {
     public KeyspaceRepository(CqlSession session) {
         this.session = session;
     }
-
-    public void createKeyspace(String keyspaceName, int numberOfReplicas) {
-        CreateKeyspace cK = SchemaBuilder.createKeyspace(keyspaceName)
-                .ifNotExists()
-                .withSimpleStrategy(numberOfReplicas);
-
-        session.execute(cK.build());
-    }
-
-    public void useKeyspace(String keyspace) {
-        session.execute("USE " + CqlIdentifier.fromCql(keyspace));
-    }
-
     public List<String> getKeyspaceList() {
         Select select = QueryBuilder.selectFrom("system_schema", "keyspaces").all();
         ResultSet rs = session.execute(select.build());
@@ -43,11 +31,10 @@ public class KeyspaceRepository {
     public List<String> getTableList(String keyspace)
     {
         Select select = QueryBuilder.selectFrom("system_schema", "tables").all();
-        if (keyspace != null)
-            if (keyspace != null) {
-                keyspace = keyspace.toLowerCase();
-                select = select.where(Relation.column("keyspace_name").isEqualTo(QueryBuilder.literal(keyspace)));
-            }
+        if (keyspace != null) {
+            keyspace = keyspace.toLowerCase();
+            select = select.where(Relation.column("keyspace_name").isEqualTo(QueryBuilder.literal(keyspace)));
+        }
         ResultSet rs = session.execute(select.build());
         List<String> result = new ArrayList<>();
         rs.forEach(x -> result.add(x.getString("table_name")));
@@ -56,15 +43,20 @@ public class KeyspaceRepository {
 
     public String getColDefs(String keyspace, String table)
     {
-        Map<CqlIdentifier,ColumnMetadata> map = session.getMetadata().getKeyspace(keyspace).get().getTable(table).get().getColumns();
-        Set<CqlIdentifier> set = map.keySet();
-        String s1 = "";
-        for (CqlIdentifier cqlIdentifier: set) {
-            String s = map.get(cqlIdentifier).toString();
-            s1 += s.substring(s.indexOf("(")+1,s.length()-1) + ", ";
+        try {
+            Map<CqlIdentifier, ColumnMetadata> map = session.getMetadata().getKeyspace(keyspace).get().getTable(table).get().getColumns();
+            Set<CqlIdentifier> set = map.keySet();
+            StringBuilder s1 = new StringBuilder("");
+            for (CqlIdentifier cqlIdentifier : set) {
+                String s = map.get(cqlIdentifier).toString();
+                s1.append(s.substring(s.indexOf("(") + 1, s.length() - 1) + " | ");
+            }
+            String out = s1.substring(0, s1.length() - 2).replaceAll(keyspace+"."+table+".", "");
+            return (out);
+        }catch (Exception e)
+        {
+            return "";
         }
-        s1 = s1.substring(0,s1.length()-2);
-        return (s1);
     }
 
     public List<String> getPartitionVarList(String keyspace, String table)
@@ -153,8 +145,120 @@ public class KeyspaceRepository {
         });
         return partitionKeysTONumInPartition;
     }
-
-
+    public String statsTable(Map<String, Integer> rPP)
+    {
+        if(rPP.size()==0)
+            return "";
+        Set<String> partitions = rPP.keySet();
+        int min = Integer.MAX_VALUE, max = -1;
+        double avg = 0.0;
+        for(String part : partitions)
+        {
+            int num = rPP.get(part);
+            min = Math.min(num, min);
+            max = Math.max(num, max);
+            avg+= num;
+        }
+        avg/=rPP.size();
+        return "Min: " + min + " | Max: " + max + " | Average: " + avg;
+    }
+    public String statsPart(Map<String, Integer> rPP, String size)
+    {
+        int i = size.indexOf("B");
+        int maxRows = -1;
+        int totalRows = 0;
+        Set<String> keyset = rPP.keySet();
+        for(String bababoi : keyset)
+        {
+            maxRows = Math.max(maxRows, rPP.get(bababoi));
+            totalRows += rPP.get(bababoi);
+        }
+        ArrayList<String> xd = new ArrayList<>();
+        xd.add("B");
+        xd.add("KB");
+        xd.add("MB");
+        xd.add("GB");
+        xd.add("TB");
+        xd.add("PB");
+        xd.add("EB");
+        xd.add("ZB");
+        int d;
+        double bites;
+        if(size.charAt(i-2)!=' ')
+        {
+            i++;
+        }
+        d = xd.indexOf(size.substring(i-1));
+        bites = Double.parseDouble(size.substring(0, i-2)) * maxRows / totalRows;
+        while(bites>1)
+        {
+            bites /= 1000;
+            d++;
+        }
+        if(d>0&&bites<1)
+        {
+            bites *= 1000;
+            d--;
+        }
+        return "Max Partition Size: " + String.format("%.3f %s", bites, xd.get(d));
+    }
+    public Map<String, String> getTableSizes() throws IOException
+    {
+        BufferedReader br = new BufferedReader(new FileReader("output.txt"));
+        Map<String, String> freShaVaCaDo = new TreeMap<>();
+        br.readLine();
+        String reader = br.readLine();
+        String keyspace = "", table, size;
+        long bytes;
+        while(reader != null)
+        {
+            if(reader.equals("----------------")) {
+                reader = br.readLine();
+                if (reader == null)
+                    break;
+                keyspace = reader.substring("Keyspace : ".length());
+                for(int i = 0; i<5;i++)
+                    br.readLine();
+            }
+            else
+            {
+                table = reader.substring("\t\tTable: ".length());
+                reader = br.readLine();
+                while(!reader.substring(0,Math.min(reader.length(), 21)).equals("\t\tSpace used (live): "))
+                    reader = br.readLine();
+                bytes = Integer.parseInt(reader.substring("\t\tSpace used (live): ".length()));
+                double bites = (double) bytes;
+                ArrayList<String> xd = new ArrayList<>();
+                xd.add("B");
+                xd.add("KB");
+                xd.add("MB");
+                xd.add("GB");
+                xd.add("TB");
+                xd.add("PB");
+                xd.add("EB");
+                xd.add("ZB");
+                int d = 0;
+                while(bites>1)
+                {
+                    bites /= 1000;
+                    d++;
+                }
+                if(d>0&&bites<1)
+                {
+                    bites *= 1000;
+                    d--;
+                }
+                size = String.format("%.3f %s", bites, xd.get(d));
+                freShaVaCaDo.put(keyspace+"."+table, size);
+                for(int i = 0; i<30; i++)
+                    br.readLine();
+            }
+            reader = br.readLine();
+        }
+        if(freShaVaCaDo.size()!=0)
+            return freShaVaCaDo;
+        return null;
+    }
 
     private String conversion(String col, DataType a, Row b){
         if(a.equals(DataTypes.ASCII))
