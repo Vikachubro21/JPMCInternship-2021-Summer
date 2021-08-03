@@ -16,9 +16,17 @@ import java.util.*;
 
 public class KeyspaceRepository {
     private CqlSession session;
-
+    private ArrayList<String> xd = new ArrayList<>();
     public KeyspaceRepository(CqlSession session) {
         this.session = session;
+        xd.add("B");
+        xd.add("KB");
+        xd.add("MB");
+        xd.add("GB");
+        xd.add("TB");
+        xd.add("PB");
+        xd.add("EB");
+        xd.add("ZB");
     }
     public List<String> getKeyspaceList() {
         Select select = QueryBuilder.selectFrom("system_schema", "keyspaces").all();
@@ -145,6 +153,12 @@ public class KeyspaceRepository {
         });
         return partitionKeysTONumInPartition;
     }
+    public String clusterName() throws IOException
+    {
+        BufferedReader br = new BufferedReader(new FileReader("cluster_info.txt"));
+        br.readLine();
+        return br.readLine().substring("\tName: ".length());
+    }
     public String statsTable(Map<String, Integer> rPP)
     {
         if(rPP.size()==0)
@@ -173,15 +187,6 @@ public class KeyspaceRepository {
             maxRows = Math.max(maxRows, rPP.get(bababoi));
             totalRows += rPP.get(bababoi);
         }
-        ArrayList<String> xd = new ArrayList<>();
-        xd.add("B");
-        xd.add("KB");
-        xd.add("MB");
-        xd.add("GB");
-        xd.add("TB");
-        xd.add("PB");
-        xd.add("EB");
-        xd.add("ZB");
         int d;
         double bites;
         if(size.charAt(i-2)!=' ')
@@ -204,12 +209,13 @@ public class KeyspaceRepository {
     }
     public Map<String, String> getTableSizes() throws IOException
     {
-        BufferedReader br = new BufferedReader(new FileReader("output.txt"));
+        BufferedReader br = new BufferedReader(new FileReader("table_info.txt"));
         Map<String, String> freShaVaCaDo = new TreeMap<>();
         br.readLine();
         String reader = br.readLine();
         String keyspace = "", table, size;
         long bytes;
+        long total = 0;
         while(reader != null)
         {
             if(reader.equals("----------------")) {
@@ -227,16 +233,8 @@ public class KeyspaceRepository {
                 while(!reader.substring(0,Math.min(reader.length(), 21)).equals("\t\tSpace used (live): "))
                     reader = br.readLine();
                 bytes = Integer.parseInt(reader.substring("\t\tSpace used (live): ".length()));
+                total+=bytes;
                 double bites = (double) bytes;
-                ArrayList<String> xd = new ArrayList<>();
-                xd.add("B");
-                xd.add("KB");
-                xd.add("MB");
-                xd.add("GB");
-                xd.add("TB");
-                xd.add("PB");
-                xd.add("EB");
-                xd.add("ZB");
                 int d = 0;
                 while(bites>1)
                 {
@@ -255,6 +253,20 @@ public class KeyspaceRepository {
             }
             reader = br.readLine();
         }
+        double totalbytes = (double) total;
+        int d = 0;
+        while(totalbytes>1)
+        {
+            totalbytes /= 1000;
+            d++;
+        }
+        if(d>0&&totalbytes<1)
+        {
+            totalbytes *= 1000;
+            d--;
+        }
+        size = String.format("%.3f %s", totalbytes, xd.get(d));
+        freShaVaCaDo.put("Cluster", size);
         if(freShaVaCaDo.size()!=0)
             return freShaVaCaDo;
         return null;
