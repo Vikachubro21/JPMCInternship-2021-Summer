@@ -149,12 +149,11 @@ function csvtoJS() {
         return e.split(",")
       });
 
-      r.forEach(e => {
+      r.slice(1).forEach(e => {
 
         let m = e.map(e => {
           return `<td>${e}</td>`;
         }).join("");
-
         console.log(m);
         console.log(r);
 
