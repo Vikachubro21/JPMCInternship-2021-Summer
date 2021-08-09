@@ -194,7 +194,14 @@ public class KeyspaceRepository {
             i++;
         }
         d = xd.indexOf(size.substring(i-1));
-        bites = Double.parseDouble(size.substring(0, i-2)) * maxRows / totalRows;
+        totalRows = Math.max(totalRows, 1);
+        if(rPP.size()==0)
+        {
+            bites = Double.parseDouble(size.substring(0, i-2));
+        }
+        else {
+            bites = Double.parseDouble(size.substring(0, i - 2)) * maxRows / totalRows;
+        }
         while(bites>1)
         {
             bites /= 1000;
@@ -205,6 +212,7 @@ public class KeyspaceRepository {
             bites *= 1000;
             d--;
         }
+        bites = Math.max(bites, 0);
         return "Max Partition Size: " + String.format("%.3f %s", bites, xd.get(d));
     }
     public Map<String, String> getTableSizes() throws IOException

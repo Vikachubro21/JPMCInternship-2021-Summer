@@ -20,8 +20,8 @@ After performing one of the above steps, proceed with the following:
 	it will state that a static server has been created at the address "localhost:5000"
 	Now visit this address on your browser by simply opening a tab and either pasting or typing out the address.
 	Once in the UI, direct your attention the the Choose File button on the left. 
-	Click on the button, and within the FinalPackage Directory, select the file named ".csv"
+	Click on the button, and within the FinalPackage Directory, select the file named "table_data.csv"
 	A table should appear with your table statistics.
 	Next direct your attention the the Choose File button on the right.
-	Click on this button, and select the file in the FinalPackage Directort named "Cluster_data.txt"
+	Click on this button, and select the file in the FinalPackage Directort named "cluster_data.txt"
 	

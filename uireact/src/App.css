@@ -197,13 +197,13 @@ color: white;
 }
 
 .column1 {
-  width: 50%;
+  width: 64%;
   align-content: left;
 }
 
 .column3 {
-    width:50%;
-    align-content: left;
+    width:36%;
+    align-content: center;
     text-align: left;
 }
 
