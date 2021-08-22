@@ -1,5 +1,15 @@
 # JPMCInternship-2021-Summer
 
+FinalPackage contains the final package, with all of its related information.
+source contains all of our source code.
+If you would like to modify the jar, please follow the following steps
+1. Create a new Maven Project in Intellij.
+2. Replace the pom.xml with the one in the source folder and resolve dependencies.
+3. Add our java files to the project.
+4. In order to build the jar, add a build artifact, and then build the artifact. More information can be found on JetBrains.
+If you have any questions, do not hesitate to contact me at vikas.thoutam@gmail.com
+=======
+
 With this program, you will be able to get information about the cluster(s) and table(s) that you have stored in Cassandra at the point of running. 
 
 
@@ -24,3 +34,4 @@ After performing one of the above steps, proceed with the following:
 	A table should appear with your table statistics.
 	Next direct your attention the the Choose File button on the right.
 	Click on this button, and select the file in the FinalPackage Directort named "cluster_data.txt"
+
