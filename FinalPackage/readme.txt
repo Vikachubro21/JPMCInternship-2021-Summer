@@ -17,7 +17,7 @@ After performing one of the above steps, proceed with the following:
 	To pull up the UI, go to terminal(Mac/Linux) or command prompt(Windows) and cd to the FinalPackage directory.
 	then type the command "npm install serve"
 	and then "serve -s build"
-	it will state that a static server has been created at the address "localhost:5000" or another similar address
+	it will state that a static server has been created at the address "localhost:5000"
 	Now visit this address on your browser by simply opening a tab and either pasting or typing out the address.
 	Once in the UI, direct your attention the the Choose File button on the left. 
 	Click on the button, and within the FinalPackage Directory, select the file named "table_data.csv"
